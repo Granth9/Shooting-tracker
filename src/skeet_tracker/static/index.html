@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skeet Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <p class="brand-name">Skeet Tracker</p>
+        <p class="brand-sub">ISSF rounds · 2026 Finals · drills</p>
+      </div>
+    </div>
+    <nav class="nav" role="tablist" aria-label="Main">
+      <button type="button" class="nav-btn is-active" data-view="overview">Overview</button>
+      <button type="button" class="nav-btn" data-view="log">Log</button>
+      <button type="button" class="nav-btn" data-view="results">Results</button>
+      <button type="button" class="nav-btn" data-view="stations">Stations</button>
+      <button type="button" class="nav-btn" data-view="doubles">Doubles</button>
+      <button type="button" class="nav-btn" data-view="readiness">Readiness</button>
+    </nav>
+  </header>
+
+  <main>
+    <p id="toast" class="toast" hidden role="status"></p>
+
+    <section id="view-overview" class="view is-visible" aria-label="Overview">
+      <div class="hero-strip">
+        <div>
+          <h1 class="page-title">Your form</h1>
+          <p class="lede">Competition sessions stay separate from drill volume.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-goto-log">Log session</button>
+      </div>
+
+      <div id="overview-empty" class="empty-state" hidden>
+        <h2>No sessions yet</h2>
+        <p>Log a 25-target round, a Final (up to 36), or a drill.</p>
+        <button type="button" class="btn btn-primary" data-goto="log">Start logging</button>
+      </div>
+
+      <div id="overview-content" hidden>
+        <div class="metric-row">
+          <article class="metric">
+            <p class="metric-label">Competition</p>
+            <p class="metric-value" id="m-overall">—</p>
+            <p class="metric-hint" id="m-overall-hint"></p>
+          </article>
+          <article class="metric">
+            <p class="metric-label">Recent form</p>
+            <p class="metric-value" id="m-recent">—</p>
+            <p class="metric-hint">Last 5 competition sessions</p>
+          </article>
+          <article class="metric metric-accent">
+            <p class="metric-label">Peak readiness</p>
+            <p class="metric-value" id="m-prs">—</p>
+            <p class="metric-hint" id="m-prs-hint"></p>
+          </article>
+        </div>
+
+        <div class="split">
+          <section class="panel">
+            <h2 class="panel-title">By event</h2>
+            <ul class="event-list" id="event-list"></ul>
+            <p class="panel-note" id="drill-note"></p>
+          </section>
+          <section class="panel">
+            <h2 class="panel-title">Diagnostics</h2>
+            <ul class="diag-list" id="diag-list"></ul>
+          </section>
+        </div>
+
+        <section class="panel">
+          <h2 class="panel-title">Competition form</h2>
+          <p class="panel-note">Official meet qual scores from your Results archive (Shotgun Pathway + manual).</p>
+          <div id="comp-timeline" class="comp-timeline"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Recent sessions</h2>
+          <div class="table-wrap">
+            <table class="data-table" id="rounds-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Type</th>
+                  <th>Score</th>
+                  <th>Wind</th>
+                  <th>Place</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="view-results" class="view" aria-label="Competition results" hidden>
+      <div class="hero-strip">
+        <div>
+          <h1 class="page-title">Results</h1>
+          <p class="lede">Meet archive — Pathway history plus meets you add.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-new-meet">Add meet</button>
+      </div>
+      <div id="results-body"></div>
+    </section>
+
+    <section id="view-log" class="view" aria-label="Log session" hidden>
+      <div class="hero-strip">
+        <div>
+          <h1 class="page-title">Log session</h1>
+          <p class="lede" id="log-lede">Choose round, final, or drill — then tap hit / miss.</p>
+        </div>
+        <div class="score-pill" aria-live="polite">
+          <span class="score-num" id="live-score">0</span>
+          <span class="score-den" id="live-den">/ 25</span>
+        </div>
+      </div>
+
+      <div class="mode-tabs" role="tablist" aria-label="Session type">
+        <button type="button" class="mode-btn is-active" data-mode="round">Round (25)</button>
+        <button type="button" class="mode-btn" data-mode="final">Final (36)</button>
+        <button type="button" class="mode-btn" data-mode="drill">Drill</button>
+      </div>
+
+      <form id="round-form" class="log-form">
+        <div class="meta-grid" id="meta-competition">
+          <label id="label-event">
+            <span>Event</span>
+            <select name="event_type" id="f-event">
+              <option value="practice">Practice</option>
+              <option value="qualification">Qualification</option>
+            </select>
+          </label>
+          <label id="label-round-num">
+            <span>Round #</span>
+            <select name="round_number" id="f-round-num">
+              <option value="">—</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
+          <label>
+            <span>Wind (mph)</span>
+            <input type="number" name="wind_speed_mph" id="f-wind" min="0" placeholder="0" />
+          </label>
+          <label>
+            <span>Location</span>
+            <input type="text" name="location" id="f-location" placeholder="Club / range" />
+          </label>
+        </div>
+
+        <div id="final-controls" class="final-controls" hidden>
+          <p class="final-explain">
+            ISSF 2026 Final: 36 targets on stations 3–4–5 (regular + reverse doubles).
+            Eliminations after 12, 24, 28, 32, and 36. Save a partial prefix if you were eliminated early.
+          </p>
+          <label class="inline-label">
+            <span>Targets completed</span>
+            <select id="f-final-n">
+              <option value="12">12 — after stage 1</option>
+              <option value="24">24 — after stage 2</option>
+              <option value="28">28 — after stage 3</option>
+              <option value="32">32 — bronze stage</option>
+              <option value="36" selected>36 — gold / silver</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="drill-controls" class="drill-controls" hidden>
+          <div id="drill-setup">
+            <p class="composer-title">Your drills</p>
+            <div class="drill-cards" id="drill-cards"></div>
+            <button type="button" class="btn btn-ghost" id="btn-new-custom">+ New custom drill</button>
+            <p class="final-explain" id="drill-template-desc"></p>
+
+            <div class="composer" id="drill-composer">
+              <p class="composer-title">Build / edit</p>
+              <div class="composer-add">
+                <label>
+                  <span>Station</span>
+                  <select id="f-block-station">
+                    <option>1</option><option>2</option><option>3</option><option>4</option>
+                    <option>5</option><option>6</option><option>7</option><option>8</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Shot</span>
+                  <select id="f-block-kind"></select>
+                </label>
+                <label>
+                  <span>How many</span>
+                  <input type="number" id="f-block-reps" min="1" max="40" value="2" />
+                </label>
+                <button type="button" class="btn btn-primary" id="btn-add-block">Add</button>
+              </div>
+              <ul class="block-list" id="block-list"></ul>
+              <p class="final-explain" id="drill-desc">Add blocks in the order you shoot them.</p>
+              <div class="composer-save">
+                <label>
+                  <span>Name</span>
+                  <input type="text" id="f-drill-name" placeholder="e.g. Stations 1·2·6·7·8" />
+                </label>
+                <button type="button" class="btn btn-ghost" id="btn-save-template">Save drill</button>
+                <button type="button" class="btn btn-ghost" id="btn-delete-template" hidden>Delete</button>
+              </div>
+              <label class="clean-toggle">
+                <input type="checkbox" id="f-clean-run" checked />
+                <span>Clean run — miss restarts from the first target</span>
+              </label>
+              <label class="clean-streak" id="clean-streak-wrap">
+                <span>Clean runs needed in a row</span>
+                <select id="f-clean-needed">
+                  <option value="1" selected>1 — once through</option>
+                  <option value="2">2 in a row</option>
+                  <option value="3">3 in a row</option>
+                  <option value="4">4 in a row</option>
+                  <option value="5">5 in a row</option>
+                </select>
+              </label>
+            </div>
+            <select id="f-drill-template" hidden>
+              <option value="">Custom</option>
+            </select>
+          </div>
+
+          <div id="drill-scorer" class="drill-scorer" hidden>
+            <div class="scorer-progress">
+              <p class="scorer-count"><span id="scorer-idx">1</span> / <span id="scorer-total">24</span></p>
+              <p class="scorer-score" id="scorer-hits">0 hits</p>
+            </div>
+            <p class="scorer-attempt" id="scorer-attempt" hidden>Attempt 1</p>
+            <p class="scorer-station" id="scorer-station">Station —</p>
+            <p class="scorer-current" id="scorer-label">—</p>
+            <div class="scorer-actions">
+              <button type="button" class="btn-score btn-hit" id="btn-score-hit">Hit</button>
+              <button type="button" class="btn-score btn-miss" id="btn-score-miss">Miss</button>
+            </div>
+            <div class="scorer-tools">
+              <button type="button" class="btn btn-ghost" id="btn-score-undo">Undo</button>
+              <button type="button" class="btn btn-ghost" id="btn-score-restart">Restart attempt</button>
+              <button type="button" class="btn btn-ghost" id="btn-score-back">Edit setup</button>
+              <span class="scorer-hint">Keys: <kbd>H</kbd> · <kbd>M</kbd> · <kbd>U</kbd></span>
+            </div>
+            <div class="scorer-by-station" id="scorer-by-station"></div>
+          </div>
+        </div>
+
+        <div id="shot-board" class="shot-board"></div>
+
+        <div class="form-actions" id="board-actions">
+          <button type="button" class="btn btn-ghost" id="btn-all-hit">Mark all hit</button>
+          <button type="button" class="btn btn-ghost" id="btn-reset-shots">Reset shots</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-round">Save session</button>
+        </div>
+        <div class="form-actions" id="drill-start-actions" hidden>
+          <button type="button" class="btn btn-primary" id="btn-start-drill">Start scoring</button>
+        </div>
+        <div class="form-actions" id="drill-save-actions" hidden>
+          <button type="submit" class="btn btn-primary" id="btn-save-drill" disabled>Save drill</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="view-stations" class="view" aria-label="Stations" hidden>
+      <div class="hero-strip">
+        <div>
+          <h1 class="page-title">Stations</h1>
+          <p class="lede">Where your volume goes — and which stations need more work.</p>
+        </div>
+      </div>
+      <div id="stations-body"></div>
+    </section>
+
+    <section id="view-doubles" class="view" aria-label="Doubles" hidden>
+      <div class="hero-strip">
+        <div>
+          <h1 class="page-title">Doubles</h1>
+          <p class="lede">Second-target transitions — includes finals and drill doubles.</p>
+        </div>
+      </div>
+      <div id="doubles-body"></div>
+    </section>
+
+    <section id="view-readiness" class="view" aria-label="Readiness" hidden>
+      <div class="hero-strip">
+        <div>
+          <h1 class="page-title">Readiness</h1>
+          <p class="lede">Banister load, ACWR, and peak readiness (competition form).</p>
+        </div>
+      </div>
+      <div id="readiness-body"></div>
+
+      <section class="panel load-panel">
+        <h2 class="panel-title">Add training load</h2>
+        <form id="load-form" class="load-form">
+          <label>
+            <span>Date</span>
+            <input type="date" id="load-date" required />
+          </label>
+          <label>
+            <span>Workload (shots)</span>
+            <input type="number" id="load-workload" min="0" step="1" required placeholder="75" />
+          </label>
+          <label>
+            <span>Notes</span>
+            <input type="text" id="load-notes" placeholder="Optional" />
+          </label>
+          <button type="submit" class="btn btn-primary">Save load</button>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Local SQLite · Qual 25 · Final 36 (ISSF 2026) · Drills · <kbd>skeet ui</kbd></p>
+  </footer>
+
+  <script src="/static/app.js" type="module"></script>
+</body>
+</html>

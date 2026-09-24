@@ -11,6 +11,8 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
     "typer>=0.12",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +27,7 @@ skeet = "skeet_tracker.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-skeet_tracker = ["schema.sql"]
+skeet_tracker = ["schema.sql", "static/*", "data/*.json"]
 
 
 [tool.pytest.ini_options]

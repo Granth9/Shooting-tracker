@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import random
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -25,7 +24,6 @@ from skeet_tracker.reports import (
     report_station,
     report_summary,
 )
-from skeet_tracker.sequence import ISSF_SEQUENCE
 
 app = typer.Typer(
     name="skeet",
@@ -180,71 +178,63 @@ def cmd_ballistics(
     typer.echo(f"  ω_gun:      {summary['omega_gun_deg_s']:.2f} deg/s")
 
 
-@app.command("demo-seed")
-def cmd_demo_seed(
+@app.command("clear-data")
+def cmd_clear_data(
     db: Path = typer.Option(DEFAULT_DB_PATH, "--db"),
-    seed: int = typer.Option(42, "--seed"),
+    yes: bool = typer.Option(False, "--yes", help="Skip confirmation"),
 ) -> None:
-    """Populate a synthetic dataset for smoke-testing reports."""
+    """Delete all rounds, shots, and training loads from the database."""
     init_db(db)
-    rng = random.Random(seed)
-    base = datetime.now().replace(hour=10, minute=0, second=0, microsecond=0)
-
-    # Station-ish miss bias: stations 4 and 8 slightly harder
-    hard_stations = {4, 8}
-
+    if not yes:
+        confirm = typer.confirm(f"Delete ALL data in {db.resolve()}?", default=False)
+        if not confirm:
+            typer.echo("Cancelled.")
+            raise typer.Exit(code=0)
     with get_connection(db) as conn:
-        for day_offset in range(30):
-            load_day = (date.today() - timedelta(days=29 - day_offset)).isoformat()
-            # Taper-ish workload: higher mid-block, lower near end
-            wl = 40 + 30 * (1 - abs(day_offset - 15) / 15) + rng.uniform(-5, 5)
-            insert_training_load(
-                conn,
-                TrainingLoad(load_date=load_day, workload=round(wl, 1), notes="demo"),
-            )
+        conn.execute("DELETE FROM shots")
+        conn.execute("DELETE FROM rounds")
+        conn.execute("DELETE FROM training_loads")
+        conn.commit()
+    typer.echo(f"Cleared all sessions and training loads from {db.resolve()}")
 
-        for i in range(12):
-            event = "practice" if i < 8 else "qualification"
-            rn = (i % 5) + 1
-            wind = rng.choice([2, 4, 6, 8, 14, 16])
-            shots: list[ShotInput] = []
-            for slot in ISSF_SEQUENCE:
-                base_p = 0.88
-                if slot.station in hard_stations:
-                    base_p -= 0.08
-                if slot.pair_position == 2:
-                    base_p -= 0.05
-                if event == "qualification":
-                    base_p -= 0.04
-                if wind > 12:
-                    base_p -= 0.03
-                hit = rng.random() < base_p
-                shots.append(
-                    ShotInput(
-                        sequence_order=slot.sequence_order,
-                        is_hit=hit,
-                        miss_direction=None if hit else "behind",
-                    )
-                )
-            rid = f"demo-{i + 1:02d}"
-            # Replace if re-seeding
-            conn.execute("DELETE FROM rounds WHERE round_id = ?", (rid,))
-            insert_round(
-                conn,
-                RoundInput(
-                    round_id=rid,
-                    event_type=event,  # type: ignore[arg-type]
-                    shots=shots,
-                    location="Demo Range",
-                    round_number=rn,
-                    wind_speed_mph=wind,
-                    weather_condition="demo",
-                    timestamp=base - timedelta(days=11 - i),
-                    notes="demo-seed",
-                ),
-            )
 
-    typer.echo(f"Seeded demo data into {db.resolve()} (12 rounds, 30 load days)")
+@app.command("ui")
+def cmd_ui(
+    db: Path = typer.Option(DEFAULT_DB_PATH, "--db", help="SQLite database path"),
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8765, "--port"),
+) -> None:
+    """Launch the local web UI in your browser."""
+    import os
+    import socket
+    import webbrowser
+
+    import uvicorn
+
+    from skeet_tracker.web import create_app
+
+    init_db(db)
+    os.environ["SKEET_DB"] = str(db.resolve())
+    url = f"http://{host}:{port}"
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            typer.echo(
+                f"Port {port} is already in use.\n"
+                f"  • Open the running app: {url}\n"
+                f"  • Or free the port:  lsof -ti :{port} | xargs kill\n"
+                f"  • Then run again:     .venv/bin/skeet ui",
+                err=True,
+            )
+            raise typer.Exit(1) from None
+
+    typer.echo(f"Skeet Tracker UI → {url}")
+    typer.echo(f"Database: {db.resolve()}")
+    webbrowser.open(url)
+    uvicorn.run(create_app(db.resolve()), host=host, port=port, log_level="info")
 
 
 # Expose for setuptools entry point: skeet = skeet_tracker.cli:app

@@ -1,4 +1,4 @@
-"""Dataclasses for rounds, shots, and training loads."""
+"""Dataclasses for rounds, shots, drills, and training loads."""
 
 from __future__ import annotations
 
@@ -6,18 +6,19 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Optional
 
-EventType = Literal["practice", "qualification", "final"]
+EventType = Literal["practice", "qualification", "final", "drill"]
+SessionFormat = Literal["issf_25", "issf_final_36", "drill"]
 MissDirection = Literal["behind", "above", "below", "ahead", "unknown"]
 
 
 @dataclass(slots=True)
 class ShotInput:
-    """Minimal shot fields supplied by the user (sequence filled from ISSF map)."""
+    """Shot fields supplied by the user."""
 
     sequence_order: int
     is_hit: bool
     miss_direction: Optional[MissDirection] = None
-    # Optional overrides — validated against ISSF sequence when provided
+    # Optional — filled from sequence for ISSF formats; required for freeform drills
     station: Optional[int] = None
     target_house: Optional[str] = None
     is_double: Optional[bool] = None
@@ -41,11 +42,13 @@ class ShotRecord:
 
 @dataclass(slots=True)
 class RoundInput:
-    """Round metadata plus 25 shot outcomes."""
+    """Session metadata plus shot outcomes (25, up to 36, or drill N)."""
 
     round_id: str
     event_type: EventType
     shots: list[ShotInput]
+    format: SessionFormat = "issf_25"
+    drill_name: Optional[str] = None
     location: Optional[str] = None
     round_number: Optional[int] = None
     weather_condition: Optional[str] = None
@@ -59,7 +62,9 @@ class RoundInput:
 class RoundRecord:
     round_id: str
     event_type: EventType
+    format: SessionFormat = "issf_25"
     shots: list[ShotRecord] = field(default_factory=list)
+    drill_name: Optional[str] = None
     location: Optional[str] = None
     round_number: Optional[int] = None
     weather_condition: Optional[str] = None

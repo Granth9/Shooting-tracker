@@ -1,8 +1,25 @@
 # ISSF Skeet Analytics Engine
 
-Python CLI + SQLite library for granular ISSF 25-target International Skeet tracking:
-ballistic lead helpers, Markov doubles analysis, station difficulty (SDI), diagnostic
-deltas, and Banister / ACWR / Peak Readiness Score periodization.
+Python CLI + SQLite + web UI for ISSF International Skeet:
+
+- **Qualification / practice rounds** — official 25-target sequence
+- **Finals (ISSF 2026)** — up to **36 targets** on stations 3–4–5 (regular + reverse doubles), with eliminations after 12 / 24 / 28 / 32 / 36
+- **Drills** — station presets and a 12-target finals block (tracked separately from competition form)
+
+Also: ballistic lead helpers, Markov doubles analysis, station difficulty (SDI), diagnostic deltas, and Banister / ACWR / Peak Readiness Score periodization.
+
+## Web UI
+
+```bash
+pip install -e .
+skeet ui                 # opens http://127.0.0.1:8765
+```
+
+Log tab modes: **Round (25)** · **Final (36)** · **Drill** (station + any target count).
+
+```bash
+skeet clear-data --yes   # wipe all sessions / loads
+```
 
 ## Install
 
@@ -17,8 +34,8 @@ python -m pip install -e ".[dev]"
 # Create database
 skeet init-db --db skeet.db
 
-# Seed demo data (12 rounds + 30 training-load days)
-skeet demo-seed --db skeet.db
+# Launch UI
+skeet ui --db skeet.db
 
 # Reports
 skeet report summary --db skeet.db

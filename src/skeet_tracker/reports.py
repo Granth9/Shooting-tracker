@@ -55,7 +55,7 @@ def report_summary(conn: sqlite3.Connection) -> str:
     for r in rounds:
         by_type.setdefault(r["event_type"], []).append(r)
     lines.append("By event type:")
-    for et in ("practice", "qualification", "final"):
+    for et in ("practice", "qualification", "final", "drill"):
         group = by_type.get(et, [])
         if not group:
             continue
